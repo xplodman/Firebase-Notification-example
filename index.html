@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Notification</title>
+    <style>
+        /* Your CSS styles here */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        h3 {
+            text-align: center;
+            color: #007BFF;
+            font-size: 18px;
+        }
+
+        .message,
+        .device-token,
+        input[type="text"] {
+            width: 95%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
+        .message {
+            min-height: 80px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+
+        .device-token {
+            min-height: 80px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            resize: none; /* Disable textarea resizing */
+            pointer-events: none; /* Disable user interaction */
+        }
+
+        input[type="text"] {
+            border: 1px solid #ccc;
+        }
+
+        .button-container {
+            text-align: center; /* Center align the buttons */
+            display: flex;
+            justify-content: space-between;
+        }
+
+        button {
+            width: 48%; /* Set width for each button */
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+        }
+
+        .result-container h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .result {
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+</head>
+
+<body>
+<div class="container">
+    <h3>Device Token:</h3>
+    <label>
+        <textarea class="device-token" readonly></textarea>
+    </label>
+</div>
+<div class="container">
+    <h3>Notification data will be received here if the app is open and focused.</h3>
+    <div class="message"></div>
+</div>
+<div class="container">
+    <h3>Subscribe/Unsubscribe to Topics</h3>
+    <input type="text" id="topicName" placeholder="Enter Topic Name">
+    <div class="button-container">
+        <button id="subscribeBtn">Subscribe</button>
+        <button id="unsubscribeBtn">Unsubscribe</button>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-messaging-compat.js"></script>
+<script>
+    function displayResult(result, type = 'info') {
+        // Use toastr to display the result as a notification
+        toastr.options = {
+            closeButton: true,
+            timeOut: 3000, // Display for 3 seconds (adjust as needed)
+        };
+
+        // Show the notification based on the specified type (error or info)
+        if (type === 'error') {
+            toastr.error(result);
+        } else {
+            toastr.info(result);
+        }
+    }
+
+    const cloudMessagingApiServerKey = 'CLOUD_MESSAGING_API_SERVER_KEY';
+    const vapidKey = 'YOUR_VAPID_KEY';
+
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_STORAGE_BUCKET",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID",
+        measurementId: "YOUR_MEASUREMENT_ID"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig)
+    const messaging = firebase.messaging()
+    let currentToken = null;
+
+    // Generate device token using public id
+    messaging.getToken({vapidKey: vapidKey}).then((token) => {
+        if (token) {
+            currentToken = token;
+            $('.device-token').val(currentToken);
+        } else {
+            // If token is empty
+            setTokenSentToServer(false);
+        }
+    }).catch((err) => {
+        displayResult(err)
+        // If there is an error
+        setTokenSentToServer(false);
+    });
+
+    messaging.onMessage((payload) => {
+        // If the app is open and focused, notification data will receive here
+        // Keep in mind if a message is received here, it will not notify in the background
+        // So here, use the message data however you want
+        displayResult('Message received ')
+        const messagesElement = $('.message');
+        const dataHeaderElement = $('<h5>Message Received:</h5>');
+        const dataElement = $('<pre></pre>').css("overflow-x", "hidden");
+        dataElement.text(JSON.stringify(payload, null, 2));
+        messagesElement.append(dataHeaderElement);
+        messagesElement.append(dataElement);
+    });
+
+    // Send token to the server where it is used for sending notifications
+    function sendTokenToServer() {
+        if (!isTokenSentToServer()) {
+            displayResult('Sending token to server ...')
+            // If token is successfully sent to the server, set setTokenSentToServer to true
+            setTokenSentToServer(true);
+        } else {
+            displayResult('Token already available in the server', 'error');
+        }
+    }
+
+    function isTokenSentToServer() {
+        return window.localStorage.getItem('sentToServer') === '1';
+    }
+
+    // Set the value of "sentToServer" to true in the local storage
+    // So if we are sending it a second time, we will check from local storage
+    function setTokenSentToServer(sent) {
+        window.localStorage.setItem('sentToServer', sent ? '1' : '0');
+    }
+
+    $('#subscribeBtn').click(function () {
+        const topicName = $('#topicName').val();
+        if (!topicName) {
+            displayResult('Topic name cannot be empty.', 'error')
+            return;
+        }
+
+        const subscribeUrl = `https://iid.googleapis.com/iid/v1/${currentToken}/rel/topics/${topicName}`;
+
+        $.ajax({
+            url: subscribeUrl,
+            type: 'POST',
+            headers: {
+                'Authorization': `key=${cloudMessagingApiServerKey}`
+            },
+            success: function (data, textStatus, jqXHR) {
+                if (jqXHR.status === 200) {
+                    displayResult(`Token subscribed to topic ${topicName}`)
+                } else {
+                    displayResult(`Error subscribing to topic: ${jqXHR.statusText}`, 'error')
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                displayResult(`Error subscribing to topic: ${errorThrown}`, 'error')
+            }
+        });
+    });
+
+    $('#unsubscribeBtn').click(function () {
+        const topicName = $('#topicName').val();
+        if (!topicName) {
+            displayResult('Topic name cannot be empty.', 'error')
+            return;
+        }
+
+        const unsubscribeUrl = `https://iid.googleapis.com/iid/v1/${currentToken}/rel/topics/${topicName}`;
+
+        $.ajax({
+            url: unsubscribeUrl,
+            type: 'DELETE',
+            headers: {
+                'Authorization': `key=${cloudMessagingApiServerKey}`
+            },
+            success: function (data, textStatus, jqXHR) {
+                if (jqXHR.status === 200) {
+                    displayResult(`Token unsubscribed from topic ${topicName}`)
+                } else {
+                    displayResult(`Error unsubscribing from topic: ${jqXHR.statusText}`, 'error')
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                displayResult(`Error unsubscribing from topic: ${errorThrown}`, 'error')
+            }
+        });
+    });
+</script>
+</body>
+
+</html>
