@@ -286,12 +286,15 @@
 
         const sendMessageUrl = 'https://fcm.googleapis.com/fcm/send';
 
+        var messageTitleValue = $('#messageTitle').val();
+        var messageBodyValue = $('#messageBody').val();
+        var imageUrlValue = $('#imageUrl').val();
         const messageData = {
             to: messageDataTo,
             notification: {
-                title: 'notification_title',
-                body: 'notification_body',
-                image: 'image_url'
+                title: (messageTitleValue.trim() === '') ? 'notification_title' : messageTitleValue,
+                body: (messageBodyValue.trim() === '') ? 'notification_body' : messageBodyValue,
+                image: (imageUrlValue.trim() === '') ? 'image_url' : imageUrlValue
             },
             priority: 'high'
         };
