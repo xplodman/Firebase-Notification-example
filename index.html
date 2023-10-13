@@ -70,7 +70,7 @@
 
         <!-- Send Message Column -->
         <div class="col-md-4">
-            <div class="card mb-3" style="height: 500px; overflow-y: auto;">
+            <div class="card mb-3">
                 <div class="card-header">Send Message</div>
                 <div class="card-body">
                     <div class="form-group">
@@ -96,6 +96,12 @@
                             <label for="sendViaTopic" class="form-check-label">Send via Topic</label>
                         </div>
                     </div>
+                    <!-- Topic Name Input (initially hidden) -->
+                    <div class="form-group" id="destinationTopicDiv" style="display: none;">
+                        <label for="destinationTopic">Topic Name:</label>
+                        <input type="text" id="destinationTopic" placeholder="Enter Topic Name" class="form-control">
+                    </div>
+
                     <div class="button-container">
                         <button id="sendMessageBtn" class="btn btn-success">Send Message</button>
                     </div>
@@ -105,7 +111,7 @@
 
         <!-- Notification Result Column -->
         <div class="col-md-4">
-            <div class="card mb-3" style="max-height: 500px; overflow-y: auto;">
+            <div class="card mb-3" style="max-height: 800px; overflow-y: auto;">
                 <div class="card-header">Notification Result</div>
                 <div class="card-body message"></div>
             </div>
@@ -121,21 +127,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-messaging-compat.js"></script>
 
 <script>
-    function displayResult(result, type = 'info') {
-        // Use toastr to display the result as a notification
-        toastr.options = {
-            closeButton: true,
-            timeOut: 3000, // Display for 3 seconds (adjust as needed)
-        };
-
-        // Show the notification based on the specified type (error or info)
-        if (type === 'error') {
-            toastr.error(result);
-        } else {
-            toastr.info(result);
-        }
-    }
-
     const cloudMessagingApiServerKey = 'CLOUD_MESSAGING_API_SERVER_KEY';
     const vapidKey = 'YOUR_VAPID_KEY';
 
@@ -200,26 +191,14 @@
         messagesElement.prepend(card);
     });
 
-    // Send token to the server where it is used for sending notifications
-    function sendTokenToServer() {
-        if (!isTokenSentToServer()) {
-            displayResult('Sending token to server ...')
-            // If token is successfully sent to the server, set setTokenSentToServer to true
-            setTokenSentToServer(true);
+    // Show/hide topic name input based on the selected method
+    $('input[name="sendMethod"]').change(function () {
+        if ($(this).val() === 'topic') {
+            $('#destinationTopicDiv').show();
         } else {
-            displayResult('Token already available in the server', 'error');
+            $('#destinationTopicDiv').hide();
         }
-    }
-
-    function isTokenSentToServer() {
-        return window.localStorage.getItem('sentToServer') === '1';
-    }
-
-    // Set the value of "sentToServer" to true in the local storage
-    // So if we are sending it a second time, we will check from local storage
-    function setTokenSentToServer(sent) {
-        window.localStorage.setItem('sentToServer', sent ? '1' : '0');
-    }
+    });
 
     $('#subscribeBtn').click(function () {
         const topicName = $('#topicName').val();
@@ -280,12 +259,6 @@
     });
 
     $('#sendMessageBtn').click(function () {
-        let topicName = $('#topicName').val();
-        if (!topicName) {
-            displayResult('Topic name cannot be empty.', 'error');
-            return;
-        }
-
         var selectedMethod = $('input[name="sendMethod"]:checked').val();
         var messageDataTo = '';
 
@@ -297,6 +270,12 @@
                 successMessage = `Message sent to device token.`;
                 break;
             case 'topic':
+                let topicName = $('#destinationTopic').val();
+                if (!topicName) {
+                    displayResult('Topic name cannot be empty.', 'error');
+                    return;
+                }
+
                 messageDataTo = `/topics/${topicName}`;
                 successMessage = `Message sent to topic {${topicName}}.`;
                 break;
@@ -338,6 +317,41 @@
         });
     });
 
+    function displayResult(result, type = 'info') {
+        // Use toastr to display the result as a notification
+        toastr.options = {
+            closeButton: true,
+            timeOut: 3000, // Display for 3 seconds (adjust as needed)
+        };
+
+        // Show the notification based on the specified type (error or info)
+        if (type === 'error') {
+            toastr.error(result);
+        } else {
+            toastr.info(result);
+        }
+    }
+
+    // Send token to the server where it is used for sending notifications
+    function sendTokenToServer() {
+        if (!isTokenSentToServer()) {
+            displayResult('Sending token to server ...')
+            // If token is successfully sent to the server, set setTokenSentToServer to true
+            setTokenSentToServer(true);
+        } else {
+            displayResult('Token already available in the server', 'error');
+        }
+    }
+
+    function isTokenSentToServer() {
+        return window.localStorage.getItem('sentToServer') === '1';
+    }
+
+    // Set the value of "sentToServer" to true in the local storage
+    // So if we are sending it a second time, we will check from local storage
+    function setTokenSentToServer(sent) {
+        window.localStorage.setItem('sentToServer', sent ? '1' : '0');
+    }
 </script>
 </body>
 
